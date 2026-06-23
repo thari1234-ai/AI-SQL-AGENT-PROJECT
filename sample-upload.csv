@@ -1,0 +1,4 @@
+order_id,product,region,revenue,order_date
+1,Keyboard,North,120.50,2026-01-05
+2,Mouse,South,75.00,2026-01-08
+3,Monitor,East,240.25,2026-01-12
