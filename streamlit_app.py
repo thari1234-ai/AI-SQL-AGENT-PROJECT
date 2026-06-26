@@ -9,6 +9,104 @@ import streamlit as st
 DATA_TABLE = "dataset"
 
 
+def _inject_styles() -> None:
+    st.markdown(
+        """
+        <style>
+            .stApp {
+                background:
+                    radial-gradient(circle at 10% 5%, rgba(14,124,134,0.15), transparent 35%),
+                    radial-gradient(circle at 90% 10%, rgba(54,164,123,0.12), transparent 30%),
+                    linear-gradient(180deg, #f6f8f5 0%, #eef4f1 100%);
+            }
+
+            .hero-wrap {
+                border-radius: 18px;
+                padding: 1.25rem 1.4rem;
+                background: linear-gradient(135deg, #0e7c86 0%, #2f9b75 100%);
+                color: #f8fbfa;
+                margin-bottom: 1rem;
+                box-shadow: 0 12px 24px rgba(17, 56, 63, 0.18);
+            }
+
+            .hero-title {
+                font-size: 1.85rem;
+                line-height: 1.2;
+                font-weight: 700;
+                margin-bottom: 0.2rem;
+            }
+
+            .hero-sub {
+                font-size: 1.0rem;
+                opacity: 0.96;
+            }
+
+            .metric-strip {
+                display: flex;
+                gap: 0.75rem;
+                flex-wrap: wrap;
+                margin-top: 0.9rem;
+            }
+
+            .metric-pill {
+                background: rgba(255, 255, 255, 0.2);
+                color: #ffffff;
+                border: 1px solid rgba(255, 255, 255, 0.35);
+                border-radius: 999px;
+                padding: 0.3rem 0.8rem;
+                font-size: 0.9rem;
+            }
+
+            .section-card {
+                background: rgba(255, 255, 255, 0.92);
+                border: 1px solid #d7e3de;
+                border-radius: 16px;
+                padding: 0.9rem 1rem;
+                box-shadow: 0 6px 18px rgba(31, 53, 43, 0.07);
+                margin-bottom: 0.9rem;
+            }
+
+            .section-title {
+                font-size: 1.1rem;
+                font-weight: 700;
+                color: #18333a;
+                margin: 0 0 0.35rem 0;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_hero(df: pd.DataFrame) -> None:
+    st.markdown(
+        f"""
+        <div class="hero-wrap">
+            <div class="hero-title">AI SQL Agent Studio</div>
+            <div class="hero-sub">Upload CSVs, ask in plain language, and explore data instantly with SQL.</div>
+            <div class="metric-strip">
+                <div class="metric-pill">Rows: {len(df)}</div>
+                <div class="metric-pill">Columns: {len(df.columns)}</div>
+                <div class="metric-pill">Engine: DuckDB</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _section_open(title: str, subtitle: str) -> None:
+    st.markdown(
+        f"""
+        <div class="section-card">
+            <div class="section-title">{title}</div>
+            <div>{subtitle}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _load_default_data() -> pd.DataFrame:
     sample_path = Path(__file__).resolve().parent / "sample-upload.csv"
     if sample_path.exists():
@@ -131,8 +229,7 @@ def _render_auto_chart(result_df: pd.DataFrame) -> None:
 
 def main() -> None:
     st.set_page_config(page_title="AI SQL Agent", page_icon="📊", layout="wide")
-    st.title("AI SQL Agent - No Backend Required")
-    st.caption("Upload a CSV, ask in plain English, and run SQL directly in Streamlit.")
+    _inject_styles()
 
     with st.sidebar:
         st.header("Data Source")
@@ -153,11 +250,12 @@ def main() -> None:
         st.warning("No data loaded. Upload a CSV or click 'Use Sample Data'.")
         return
 
-    st.subheader("Dataset Preview")
-    st.write(f"Rows: {len(df)} | Columns: {len(df.columns)}")
+    _render_hero(df)
+
+    _section_open("Dataset Preview", "Inspect your data before generating queries.")
     st.dataframe(df.head(20), use_container_width=True)
 
-    st.subheader("Ask in Natural Language")
+    _section_open("Ask in Natural Language", "Describe what you want, then generate and run SQL.")
     prompt = st.text_area(
         "Prompt",
         placeholder="Examples: total revenue by region, top 5 by revenue, monthly total revenue",
@@ -195,7 +293,7 @@ def main() -> None:
             st.error(f"SQL execution failed: {exc}")
             return
 
-        st.subheader("Results")
+        _section_open("Results", "Query output and chart are generated below.")
         st.dataframe(result_df, use_container_width=True)
         _render_auto_chart(result_df)
 
