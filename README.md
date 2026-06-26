@@ -72,6 +72,21 @@ AI SQL Agent is a production-style SaaS starter platform that lets users connect
 - End-to-end free-tier deployment guide: `docs/free-deployment.md`
 - Render blueprint file: `render.yaml`
 
+## Streamlit Deployment (No Backend Required)
+If you want a single deployment with no FastAPI hosting, this repository includes a standalone Streamlit app at project root.
+
+1. Install dependencies:
+   - `pip install -r requirements.txt`
+2. Run locally:
+   - `streamlit run streamlit_app.py`
+3. Upload your CSV in the app or use sample data, then ask questions and run SQL directly.
+
+### Streamlit Cloud Setup
+1. Push this repository to GitHub.
+2. Create a new Streamlit app from the repo.
+3. Set entrypoint file to: `streamlit_app.py`
+4. No backend URL or API secret is required for basic usage.
+
 ## Google Free Tier LLM Setup
 1. Get a Gemini API key from Google AI Studio.
 2. In `backend/.env` set:
