@@ -20,6 +20,49 @@ def _inject_styles() -> None:
                     linear-gradient(180deg, #f6f8f5 0%, #eef4f1 100%);
             }
 
+            [data-testid="stSidebar"] {
+                background: linear-gradient(180deg, #dfe8e3 0%, #d5e2dc 100%);
+                border-right: 1px solid #c3d4cc;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2,
+            [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3,
+            [data-testid="stSidebar"] label,
+            [data-testid="stSidebar"] p {
+                color: #12353d;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] {
+                border: 1px solid #b9d2c8;
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.55);
+                padding: 0.35rem;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] section {
+                border: 1px dashed #7db4a4;
+                border-radius: 10px;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
+                border-radius: 10px;
+                border: 1px solid #89b9aa;
+                color: #0f4d57;
+                background: #eef8f4;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stButton"] button {
+                background: linear-gradient(135deg, #148f98 0%, #32a87a 100%);
+                border: 1px solid #2f8e89;
+                color: #f4fffb;
+                box-shadow: 0 8px 16px rgba(20, 82, 75, 0.18);
+            }
+
+            [data-testid="stSidebar"] [data-testid="stButton"] button:hover {
+                filter: brightness(1.05);
+                transform: translateY(-1px);
+            }
+
             .hero-wrap {
                 border-radius: 18px;
                 padding: 1.25rem 1.4rem;
