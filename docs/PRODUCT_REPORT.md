@@ -13,17 +13,41 @@ AI SQL Agent is a natural-language analytics product that lets users upload tabu
 - Provides an end-to-end, single-app data exploration workflow.
 
 ## Key Features
-- CSV upload and sample dataset support.
-- Natural-language prompt to SQL generation.
-- In-app SQL execution with DuckDB.
-- Dataset intelligence panels:
-  - Preview
-  - Data Quality
-  - Column Insights
-  - Highlights
-- Automatic chart rendering and CSV export.
-- Quick prompt templates and reusable query history.
-- Polished, presentation-ready UI with themed components and sidebar interactions.
+- Data onboarding:
+  - CSV upload support
+  - One-click sample dataset loading
+  - Dataset snapshot in sidebar (rows, columns, quality score)
+- AI query experience:
+  - Natural-language prompt to SQL generation
+  - Quick prompt buttons for instant demo usage
+  - SQL editor for manual refinement
+- Analytics engine:
+  - In-app SQL execution with DuckDB
+  - Safe handling of column names with spaces/special characters
+  - Combined intent support (for example: starts-with + top-N)
+- Insight and reporting:
+  - Dataset panels: Preview, Data Quality, Column Insights, Highlights
+  - Automatic chart rendering based on result shape
+  - Download results or datasets as CSV
+  - Query history with reuse action
+- UI and presentation:
+  - Custom themed interface with branded colors
+  - Animated sidebar interactions and polished controls
+  - Demo-ready layout for stakeholder walkthroughs
+
+## Example Prompts and Outputs
+- Prompt: "Total revenue by region"
+  - Typical SQL output: group by region with SUM(revenue)
+  - Result type: ranked regional summary table + bar chart
+- Prompt: "Top 5 students"
+  - Typical SQL output: ORDER BY selected metric DESC LIMIT 5
+  - Result type: top records table
+- Prompt: "Name starts with M and top 5 students"
+  - Typical SQL output: WHERE lower(name) LIKE 'm%' with LIMIT 5
+  - Result type: filtered top list
+- Prompt: "Monthly total revenue"
+  - Typical SQL output: month extraction + monthly aggregation
+  - Result type: month-wise trend table + line chart
 
 ## Reliability and Usability
 - Handles columns with spaces/special characters safely in generated SQL.
