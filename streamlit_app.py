@@ -10,6 +10,11 @@ import streamlit as st
 DATA_TABLE = "dataset"
 
 
+def _quote_ident(name: str) -> str:
+    escaped = str(name).replace('"', '""')
+    return f'"{escaped}"'
+
+
 def _inject_styles() -> None:
     st.markdown(
         """
@@ -419,9 +424,11 @@ def _suggest_sql(prompt: str, df: pd.DataFrame) -> tuple[str, str]:
     if "monthly" in normalized and date_cols and numeric_cols and ("sum" in normalized or "total" in normalized):
         date_col = _match_column(normalized, date_cols) or date_cols[0]
         metric_col = _match_column(normalized, numeric_cols) or numeric_cols[0]
+        date_ident = _quote_ident(date_col)
+        metric_ident = _quote_ident(metric_col)
         sql = (
-            f"SELECT strftime(try_cast({date_col} AS DATE), '%Y-%m') AS month, "
-            f"SUM({metric_col}) AS total_{metric_col} "
+            f"SELECT strftime(try_cast({date_ident} AS DATE), '%Y-%m') AS month, "
+            f"SUM({metric_ident}) AS total_{metric_col} "
             f"FROM {DATA_TABLE} "
             "GROUP BY 1 ORDER BY 1"
         )
@@ -431,34 +438,41 @@ def _suggest_sql(prompt: str, df: pd.DataFrame) -> tuple[str, str]:
         metric_col = _match_column(normalized, numeric_cols) or (numeric_cols[0] if numeric_cols else None)
         group_col = _match_column(normalized, category_cols)
         if metric_col and group_col:
+            metric_ident = _quote_ident(metric_col)
+            group_ident = _quote_ident(group_col)
             sql = (
-                f"SELECT {group_col}, AVG({metric_col}) AS avg_{metric_col} "
-                f"FROM {DATA_TABLE} GROUP BY {group_col} ORDER BY avg_{metric_col} DESC"
+                f"SELECT {group_ident}, AVG({metric_ident}) AS avg_{metric_col} "
+                f"FROM {DATA_TABLE} GROUP BY {group_ident} ORDER BY avg_{metric_col} DESC"
             )
             return sql, "Calculated averages grouped by the category found in your prompt."
         if metric_col:
-            sql = f"SELECT AVG({metric_col}) AS avg_{metric_col} FROM {DATA_TABLE}"
+            metric_ident = _quote_ident(metric_col)
+            sql = f"SELECT AVG({metric_ident}) AS avg_{metric_col} FROM {DATA_TABLE}"
             return sql, "Calculated an overall average for the requested metric."
 
     if "sum" in normalized or "total" in normalized:
         metric_col = _match_column(normalized, numeric_cols) or (numeric_cols[0] if numeric_cols else None)
         group_col = _match_column(normalized, category_cols)
         if metric_col and group_col:
+            metric_ident = _quote_ident(metric_col)
+            group_ident = _quote_ident(group_col)
             sql = (
-                f"SELECT {group_col}, SUM({metric_col}) AS total_{metric_col} "
-                f"FROM {DATA_TABLE} GROUP BY {group_col} ORDER BY total_{metric_col} DESC"
+                f"SELECT {group_ident}, SUM({metric_ident}) AS total_{metric_col} "
+                f"FROM {DATA_TABLE} GROUP BY {group_ident} ORDER BY total_{metric_col} DESC"
             )
             return sql, "Summed values grouped by the category mentioned in your prompt."
         if metric_col:
-            sql = f"SELECT SUM({metric_col}) AS total_{metric_col} FROM {DATA_TABLE}"
+            metric_ident = _quote_ident(metric_col)
+            sql = f"SELECT SUM({metric_ident}) AS total_{metric_col} FROM {DATA_TABLE}"
             return sql, "Calculated a total for the selected metric."
 
     if "count" in normalized:
         group_col = _match_column(normalized, category_cols)
         if group_col:
+            group_ident = _quote_ident(group_col)
             sql = (
-                f"SELECT {group_col}, COUNT(*) AS row_count "
-                f"FROM {DATA_TABLE} GROUP BY {group_col} ORDER BY row_count DESC"
+                f"SELECT {group_ident}, COUNT(*) AS row_count "
+                f"FROM {DATA_TABLE} GROUP BY {group_ident} ORDER BY row_count DESC"
             )
             return sql, "Counted records by category."
         return f"SELECT COUNT(*) AS row_count FROM {DATA_TABLE}", "Counted total records."
@@ -467,7 +481,8 @@ def _suggest_sql(prompt: str, df: pd.DataFrame) -> tuple[str, str]:
     if top_match and numeric_cols:
         limit_n = int(top_match.group(1))
         metric_col = _match_column(normalized, numeric_cols) or numeric_cols[0]
-        sql = f"SELECT * FROM {DATA_TABLE} ORDER BY {metric_col} DESC LIMIT {limit_n}"
+        metric_ident = _quote_ident(metric_col)
+        sql = f"SELECT * FROM {DATA_TABLE} ORDER BY {metric_ident} DESC LIMIT {limit_n}"
         return sql, f"Returned top {limit_n} rows by {metric_col}."
 
     return f"SELECT * FROM {DATA_TABLE} LIMIT 100", "Used a safe default query because the prompt was broad."
