@@ -72,6 +72,57 @@ def _inject_styles() -> None:
                 color: #18333a;
                 margin: 0 0 0.35rem 0;
             }
+
+            [data-testid="stTextArea"] textarea {
+                background: linear-gradient(180deg, #ffffff 0%, #f7fcfa 100%);
+                border: 2px solid #84b8a9;
+                border-radius: 14px;
+                color: #143036;
+                font-size: 0.98rem;
+                box-shadow: 0 6px 14px rgba(19, 63, 53, 0.08);
+            }
+
+            [data-testid="stTextArea"] textarea:focus {
+                border: 2px solid #0e7c86;
+                box-shadow: 0 0 0 0.2rem rgba(14, 124, 134, 0.18);
+            }
+
+            [data-testid="stTextArea"] label p {
+                color: #0d5661;
+                font-weight: 700;
+            }
+
+            [data-testid="stButton"] button {
+                border-radius: 12px;
+                border: 1px solid #8fb7ab;
+                background: linear-gradient(135deg, #0e7c86 0%, #2f9b75 100%);
+                color: #f5fbf9;
+                font-weight: 700;
+            }
+
+            [data-testid="stButton"] button:hover {
+                border: 1px solid #0e7c86;
+                filter: brightness(1.03);
+            }
+
+            .hint-card {
+                border-radius: 14px;
+                border: 1px dashed #87b2a8;
+                background: rgba(242, 250, 247, 0.9);
+                padding: 0.75rem 0.95rem;
+                margin-bottom: 0.9rem;
+            }
+
+            .hint-chip {
+                display: inline-block;
+                margin: 0.18rem 0.2rem;
+                padding: 0.25rem 0.6rem;
+                border-radius: 999px;
+                background: #e2f2ee;
+                border: 1px solid #b7d9d0;
+                color: #17545e;
+                font-size: 0.86rem;
+            }
         </style>
         """,
         unsafe_allow_html=True,
@@ -105,6 +156,62 @@ def _section_open(title: str, subtitle: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+def _render_dataset_preview(df: pd.DataFrame) -> None:
+    total_cells = max(len(df) * max(len(df.columns), 1), 1)
+    missing_cells = int(df.isna().sum().sum())
+    missing_pct = round((missing_cells / total_cells) * 100, 2)
+
+    numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    cat_cols = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Rows", f"{len(df):,}")
+    c2.metric("Columns", f"{len(df.columns)}")
+    c3.metric("Missing", f"{missing_cells:,}")
+    c4.metric("Missing %", f"{missing_pct}%")
+
+    tab1, tab2, tab3 = st.tabs(["Preview", "Data Quality", "Column Insights"])
+
+    with tab1:
+        st.dataframe(df.head(20), use_container_width=True)
+        csv_bytes = df.to_csv(index=False).encode("utf-8")
+        st.download_button("Download Current Dataset", csv_bytes, file_name="dataset.csv", mime="text/csv")
+
+    with tab2:
+        quality_df = pd.DataFrame(
+            {
+                "column": df.columns,
+                "dtype": [str(df[col].dtype) for col in df.columns],
+                "missing_count": [int(df[col].isna().sum()) for col in df.columns],
+                "missing_pct": [round(float(df[col].isna().mean() * 100), 2) for col in df.columns],
+                "unique_values": [int(df[col].nunique(dropna=True)) for col in df.columns],
+            }
+        )
+        st.dataframe(quality_df, use_container_width=True)
+
+    with tab3:
+        if numeric_cols:
+            st.write("Numeric columns summary")
+            st.dataframe(df[numeric_cols].describe().transpose(), use_container_width=True)
+        else:
+            st.info("No numeric columns found.")
+
+        if cat_cols:
+            pick_col = st.selectbox("See top values for a categorical column", options=cat_cols, key="cat_pick")
+            top_vals = (
+                df[pick_col]
+                .astype("string")
+                .fillna("<missing>")
+                .value_counts()
+                .head(10)
+                .rename_axis("value")
+                .reset_index(name="count")
+            )
+            st.dataframe(top_vals, use_container_width=True)
+        else:
+            st.info("No categorical columns found.")
 
 
 def _load_default_data() -> pd.DataFrame:
@@ -253,9 +360,21 @@ def main() -> None:
     _render_hero(df)
 
     _section_open("Dataset Preview", "Inspect your data before generating queries.")
-    st.dataframe(df.head(20), use_container_width=True)
+    _render_dataset_preview(df)
 
     _section_open("Ask in Natural Language", "Describe what you want, then generate and run SQL.")
+    st.markdown(
+        """
+        <div class="hint-card">
+            <strong>Try these prompt ideas:</strong><br/>
+            <span class="hint-chip">total revenue by region</span>
+            <span class="hint-chip">top 5 orders by revenue</span>
+            <span class="hint-chip">monthly total revenue</span>
+            <span class="hint-chip">average revenue by product</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     prompt = st.text_area(
         "Prompt",
         placeholder="Examples: total revenue by region, top 5 by revenue, monthly total revenue",
