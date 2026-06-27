@@ -413,13 +413,32 @@ def _match_column(prompt: str, columns: list[str]) -> str | None:
     return None
 
 
+def _find_name_column(columns: list[str]) -> str | None:
+    for col in columns:
+        if "name" in str(col).lower():
+            return col
+    return None
+
+
 def _suggest_sql(prompt: str, df: pd.DataFrame) -> tuple[str, str]:
     normalized = prompt.strip().lower()
     cols = [str(c) for c in df.columns]
     numeric_cols, date_cols, category_cols = _detect_columns(df)
+    where_clauses: list[str] = []
+    filter_notes: list[str] = []
 
     if not cols:
         return "", "No columns found. Upload a CSV first."
+
+    starts_with_match = re.search(r"starts?\s+with\s+['\"]?([a-z0-9])['\"]?", normalized)
+    if starts_with_match:
+        starts_letter = starts_with_match.group(1).lower()
+        name_col = _match_column(normalized, category_cols) or _find_name_column(cols)
+        if name_col:
+            name_ident = _quote_ident(name_col)
+            safe_letter = starts_letter.replace("'", "''")
+            where_clauses.append(f"lower(cast({name_ident} as varchar)) LIKE '{safe_letter}%'")
+            filter_notes.append(f"name starts with '{starts_letter.upper()}'")
 
     if "monthly" in normalized and date_cols and numeric_cols and ("sum" in normalized or "total" in normalized):
         date_col = _match_column(normalized, date_cols) or date_cols[0]
@@ -478,14 +497,22 @@ def _suggest_sql(prompt: str, df: pd.DataFrame) -> tuple[str, str]:
         return f"SELECT COUNT(*) AS row_count FROM {DATA_TABLE}", "Counted total records."
 
     top_match = re.search(r"top\s+(\d+)", normalized)
-    if top_match and numeric_cols:
+    if top_match:
         limit_n = int(top_match.group(1))
-        metric_col = _match_column(normalized, numeric_cols) or numeric_cols[0]
-        metric_ident = _quote_ident(metric_col)
-        sql = f"SELECT * FROM {DATA_TABLE} ORDER BY {metric_ident} DESC LIMIT {limit_n}"
-        return sql, f"Returned top {limit_n} rows by {metric_col}."
+        metric_col = _match_column(normalized, numeric_cols)
+        where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        if metric_col:
+            metric_ident = _quote_ident(metric_col)
+            sql = f"SELECT * FROM {DATA_TABLE}{where_sql} ORDER BY {metric_ident} DESC LIMIT {limit_n}"
+            note = f" with {' and '.join(filter_notes)}" if filter_notes else ""
+            return sql, f"Returned top {limit_n} rows by {metric_col}{note}."
 
-    return f"SELECT * FROM {DATA_TABLE} LIMIT 100", "Used a safe default query because the prompt was broad."
+        sql = f"SELECT * FROM {DATA_TABLE}{where_sql} LIMIT {limit_n}"
+        note = f" where {' and '.join(filter_notes)}" if filter_notes else ""
+        return sql, f"Returned top {limit_n} rows{note}."
+
+    where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+    return f"SELECT * FROM {DATA_TABLE}{where_sql} LIMIT 100", "Used a safe default query because the prompt was broad."
 
 
 def _run_sql(df: pd.DataFrame, sql: str) -> pd.DataFrame:
