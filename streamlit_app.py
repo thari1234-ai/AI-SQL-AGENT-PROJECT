@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from pathlib import Path
 
 import duckdb
@@ -25,6 +26,24 @@ def _inject_styles() -> None:
                 border-right: 1px solid #c3d4cc;
             }
 
+            [data-testid="stSidebar"] > div:first-child {
+                position: relative;
+                overflow: hidden;
+            }
+
+            [data-testid="stSidebar"] > div:first-child::before {
+                content: "";
+                position: absolute;
+                width: 210px;
+                height: 210px;
+                top: -75px;
+                left: -65px;
+                border-radius: 50%;
+                background: radial-gradient(circle, rgba(20, 143, 152, 0.28) 0%, rgba(20, 143, 152, 0) 70%);
+                animation: floatGlow 7s ease-in-out infinite;
+                pointer-events: none;
+            }
+
             [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2,
             [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3,
             [data-testid="stSidebar"] label,
@@ -42,6 +61,7 @@ def _inject_styles() -> None:
             [data-testid="stSidebar"] [data-testid="stFileUploader"] section {
                 border: 1px dashed #7db4a4;
                 border-radius: 10px;
+                animation: pulseBorder 2.6s ease-in-out infinite;
             }
 
             [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
@@ -49,6 +69,12 @@ def _inject_styles() -> None:
                 border: 1px solid #89b9aa;
                 color: #0f4d57;
                 background: #eef8f4;
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] button:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 14px rgba(26, 83, 73, 0.18);
             }
 
             [data-testid="stSidebar"] [data-testid="stButton"] button {
@@ -56,11 +82,12 @@ def _inject_styles() -> None:
                 border: 1px solid #2f8e89;
                 color: #f4fffb;
                 box-shadow: 0 8px 16px rgba(20, 82, 75, 0.18);
+                transition: all 0.22s ease;
             }
 
             [data-testid="stSidebar"] [data-testid="stButton"] button:hover {
                 filter: brightness(1.05);
-                transform: translateY(-1px);
+                transform: translateY(-1px) scale(1.01);
             }
 
             .hero-wrap {
@@ -166,6 +193,44 @@ def _inject_styles() -> None:
                 color: #17545e;
                 font-size: 0.86rem;
             }
+
+            .sidebar-card {
+                border-radius: 14px;
+                padding: 0.7rem 0.8rem;
+                border: 1px solid #a8c8bd;
+                background: linear-gradient(145deg, rgba(255,255,255,0.75) 0%, rgba(230,243,238,0.82) 100%);
+                margin: 0.4rem 0 0.8rem 0;
+            }
+
+            .sidebar-card-title {
+                font-weight: 700;
+                color: #0f4a55;
+                margin-bottom: 0.25rem;
+                font-size: 0.95rem;
+            }
+
+            .sidebar-chip {
+                display: inline-block;
+                margin: 0.15rem 0.15rem 0 0;
+                padding: 0.2rem 0.45rem;
+                border-radius: 999px;
+                border: 1px solid #b7d9d0;
+                background: #edf8f3;
+                color: #135862;
+                font-size: 0.76rem;
+            }
+
+            @keyframes floatGlow {
+                0% { transform: translateY(0px) translateX(0px); opacity: 0.7; }
+                50% { transform: translateY(14px) translateX(12px); opacity: 1; }
+                100% { transform: translateY(0px) translateX(0px); opacity: 0.7; }
+            }
+
+            @keyframes pulseBorder {
+                0% { box-shadow: 0 0 0 0 rgba(20, 143, 152, 0.0); }
+                50% { box-shadow: 0 0 0 4px rgba(20, 143, 152, 0.09); }
+                100% { box-shadow: 0 0 0 0 rgba(20, 143, 152, 0.0); }
+            }
         </style>
         """,
         unsafe_allow_html=True,
@@ -215,7 +280,7 @@ def _render_dataset_preview(df: pd.DataFrame) -> None:
     c3.metric("Missing", f"{missing_cells:,}")
     c4.metric("Missing %", f"{missing_pct}%")
 
-    tab1, tab2, tab3 = st.tabs(["Preview", "Data Quality", "Column Insights"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Preview", "Data Quality", "Column Insights", "Highlights"])
 
     with tab1:
         st.dataframe(df.head(20), use_container_width=True)
@@ -255,6 +320,62 @@ def _render_dataset_preview(df: pd.DataFrame) -> None:
             st.dataframe(top_vals, use_container_width=True)
         else:
             st.info("No categorical columns found.")
+
+    with tab4:
+        if numeric_cols:
+            sums = df[numeric_cols].sum(numeric_only=True).sort_values(ascending=False)
+            top_metrics = sums.head(5).rename_axis("metric").reset_index(name="value")
+            st.write("Top numeric totals")
+            st.dataframe(top_metrics, use_container_width=True)
+        else:
+            st.info("Add numeric columns in your dataset to see highlights.")
+
+
+def _render_sidebar_summary(df: pd.DataFrame) -> None:
+    numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    missing_pct = round(float(df.isna().mean().mean() * 100), 2) if not df.empty else 0.0
+    quality = max(0, int(100 - min(missing_pct, 100)))
+
+    st.markdown(
+        f"""
+        <div class="sidebar-card">
+            <div class="sidebar-card-title">Dataset Snapshot</div>
+            <div><span class="sidebar-chip">Rows: {len(df):,}</span><span class="sidebar-chip">Cols: {len(df.columns)}</span></div>
+            <div><span class="sidebar-chip">Numeric: {len(numeric_cols)}</span><span class="sidebar-chip">Quality: {quality}/100</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_quick_prompt_buttons() -> None:
+    st.markdown("### Quick Prompts")
+    quick_prompts = [
+        "total revenue by region",
+        "top 5 orders by revenue",
+        "monthly total revenue",
+        "average revenue by product",
+    ]
+    for idx, qp in enumerate(quick_prompts):
+        if st.button(qp.title(), key=f"quick_prompt_{idx}", use_container_width=True):
+            st.session_state["prompt_text"] = qp
+
+
+def _render_query_history_sidebar() -> None:
+    st.markdown("### Query History")
+    history = st.session_state.get("query_history", [])
+    if not history:
+        st.caption("Run a query to build history.")
+        return
+
+    for idx, item in enumerate(history[:5]):
+        with st.expander(f"{item['time']} | {item['rows']} rows"):
+            st.write(item["prompt"])
+            st.code(item["sql"], language="sql")
+            if st.button("Reuse", key=f"reuse_{idx}", use_container_width=True):
+                st.session_state["prompt_text"] = item["prompt"]
+                st.session_state["generated_sql"] = item["sql"]
+                st.rerun()
 
 
 def _load_default_data() -> pd.DataFrame:
@@ -381,6 +502,11 @@ def main() -> None:
     st.set_page_config(page_title="AI SQL Agent", page_icon="📊", layout="wide")
     _inject_styles()
 
+    if "query_history" not in st.session_state:
+        st.session_state["query_history"] = []
+    if "prompt_text" not in st.session_state:
+        st.session_state["prompt_text"] = ""
+
     with st.sidebar:
         st.header("Data Source")
         uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
@@ -399,6 +525,11 @@ def main() -> None:
     if df.empty:
         st.warning("No data loaded. Upload a CSV or click 'Use Sample Data'.")
         return
+
+    with st.sidebar:
+        _render_sidebar_summary(df)
+        _render_quick_prompt_buttons()
+        _render_query_history_sidebar()
 
     _render_hero(df)
 
@@ -420,6 +551,7 @@ def main() -> None:
     )
     prompt = st.text_area(
         "Prompt",
+        key="prompt_text",
         placeholder="Examples: total revenue by region, top 5 by revenue, monthly total revenue",
         height=100,
     )
@@ -454,6 +586,15 @@ def main() -> None:
         except Exception as exc:
             st.error(f"SQL execution failed: {exc}")
             return
+
+        st.session_state["query_history"] = [
+            {
+                "time": datetime.now().strftime("%H:%M"),
+                "prompt": prompt.strip() or "Manual SQL run",
+                "sql": sql_to_run.strip(),
+                "rows": int(len(result_df)),
+            }
+        ] + st.session_state["query_history"]
 
         _section_open("Results", "Query output and chart are generated below.")
         st.dataframe(result_df, use_container_width=True)
